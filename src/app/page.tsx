@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 type FloorImage = {
   answer: string;
@@ -65,7 +65,7 @@ enum Turn {
   PlayerOne,
   PlayerTwo
 }
-const audio = new Audio("/correct.mp3");
+
 export default function Home() {
   const [playerOne, setPlayerOne] = useState("Player 1");
   const [playerTwo, setPlayerTwo] = useState("Player 2");
@@ -80,6 +80,7 @@ export default function Home() {
   const [gameOver, setGameOver] = useState(false);
   const [showCursorOne, setShowCursorOne] = useState(false);
   const [showCursorTwo, setShowCursorTwo] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>();
 
   useEffect(() => {
     if (!showCursorOne && !showCursorTwo) return;
@@ -179,10 +180,17 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerTwo, turn, started]);
 
+  useEffect(() => {
+    // Ensure this code runs only in the browser
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("/correct.mp3");
+    }
+  }, []);
+
   function checkAnswer(transcript: string) {
     if (transcript.toLowerCase().search(currentImage.answer) !== -1) {
       setIsCorrect(true);
-      audio.play();
+      audioRef.current?.play();
       setTimeout(() => {
         setText("");
         setCurrentImage(floorImages[currentImageIndex + 1]);
