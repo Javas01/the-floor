@@ -14,8 +14,25 @@
   }
 }
 
+@layer utilities {
+  .clip-left-timer {
+    clip-path: polygon(0% 0%, 30% 100%, 100% 100%, 100% 0%);
+  }
+  .clip-right-timer {
+    clip-path: polygon(0% 0%, 0% 100%, 70% 100%, 100% 0%);
+  }
+  .clip-player-one {
+    clip-path: polygon(0% 0%, 10% 100%, 100% 100%, 90% 0%);
+  }
+  .clip-player-two {
+    clip-path: polygon(0% 100%, 90% 100%, 100% 0%, 10% 0%);
+  }
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  width: 100vw;
+  height: 100vh;
 }

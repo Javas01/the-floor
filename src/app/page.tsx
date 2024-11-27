@@ -1,101 +1,288 @@
+"use client";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
+type FloorImage = {
+  answer: string;
+  src: string;
+  alt: string;
+};
+
+const floorImages: FloorImage[] = [
+  {
+    answer: "benz",
+    src: "/benz.jpg",
+    alt: "Benz Logo"
+  },
+  {
+    answer: "bentley",
+    src: "/bentley.jpg",
+    alt: "Bentley Logo"
+  },
+  {
+    answer: "audi",
+    src: "/audi.jpg",
+    alt: "Audi Logo"
+  },
+  {
+    answer: "toyota",
+    src: "/toyota.jpg",
+    alt: "Toyota Logo"
+  },
+  {
+    answer: "honda",
+    src: "/honda.jpg",
+    alt: "Honda Logo"
+  },
+  {
+    answer: "ford",
+    src: "/ford.jpg",
+    alt: "Ford Logo"
+  },
+  {
+    answer: "chevrolet",
+    src: "/chevrolet.jpg",
+    alt: "Chevrolet Logo"
+  },
+  {
+    answer: "nissan",
+    src: "/nissan.jpg",
+    alt: "Nissan Logo"
+  },
+  {
+    answer: "volkswagen",
+    src: "/volkswagen.jpg",
+    alt: "Volkswagen Logo"
+  },
+  {
+    answer: "hyundai",
+    src: "/hyundai.jpg",
+    alt: "Hyundai Logo"
+  }
+];
+
+enum Turn {
+  PlayerOne,
+  PlayerTwo
+}
+const audio = new Audio("/correct.mp3");
 export default function Home() {
+  const [playerOne, setPlayerOne] = useState("Player 1");
+  const [playerTwo, setPlayerTwo] = useState("Player 2");
+  const [timerOne, setTimerOne] = useState(15);
+  const [timerTwo, setTimerTwo] = useState(45);
+  const [currentImage, setCurrentImage] = useState(floorImages[0]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [text, setText] = useState("");
+  const [turn, setTurn] = useState(Turn.PlayerOne);
+  const [started, setStarted] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [showCursorOne, setShowCursorOne] = useState(false);
+  const [showCursorTwo, setShowCursorTwo] = useState(false);
+
+  useEffect(() => {
+    if (!showCursorOne && !showCursorTwo) return;
+
+    const handleKeyDown = ({ key }: KeyboardEvent) => {
+      if (key === "Backspace") {
+        if (showCursorOne) {
+          setPlayerOne((text) => text.slice(0, -1));
+        } else {
+          setPlayerTwo((text) => text.slice(0, -1));
+        }
+        return;
+      }
+      if (key === "Enter") {
+        if (showCursorOne) {
+          setShowCursorOne(false);
+        } else {
+          setShowCursorTwo(false);
+        }
+      } else {
+        if (key.length > 1) return; // if special key is pressed, do nothing
+        if (showCursorOne) {
+          setPlayerOne((text) => text + key);
+        } else {
+          setPlayerTwo((text) => text + key);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showCursorOne, showCursorTwo]);
+
+  useEffect(() => {
+    if (!started || gameOver) return;
+
+    const SpeechRecognition =
+      // @ts-expect-error SpeechRecognition may not be defined in the global scope
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Your browser does not support speech recognition.");
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true; // Keeps the recognition running
+    recognition.interimResults = true; // Shows interim results before final text
+
+    recognition.onresult = ({
+      results
+    }: {
+      results: SpeechRecognitionResultList;
+    }) => {
+      const transcript = Array.from(results)
+        .map((result) => result[0].transcript)
+        .join("");
+
+      checkAnswer(transcript);
+      setText(transcript);
+    };
+
+    recognition.start();
+
+    return () => recognition.stop(); // Cleanup on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImage, started, gameOver]);
+
+  useEffect(() => {
+    if (!started || gameOver) return;
+
+    if (timerOne <= 0) {
+      setGameOver(true);
+      setTimeout(() => alert(`Game Over, ${playerTwo} Wins!`), 500);
+    }
+
+    if (timerOne > 0 && turn === Turn.PlayerOne) {
+      const timerId = setTimeout(() => setTimerOne(timerOne - 1), 1000);
+      return () => clearTimeout(timerId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerOne, turn, started]);
+
+  useEffect(() => {
+    if (!started || gameOver) return;
+
+    if (timerTwo <= 0) {
+      setGameOver(true);
+      setTimeout(() => alert(`Game Over, ${playerOne} Wins!`), 500);
+    }
+
+    if (timerTwo > 0 && turn === Turn.PlayerTwo) {
+      const timerId = setTimeout(() => setTimerTwo(timerTwo - 1), 1000);
+      return () => clearTimeout(timerId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerTwo, turn, started]);
+
+  function checkAnswer(transcript: string) {
+    if (transcript.toLowerCase().search(currentImage.answer) !== -1) {
+      setIsCorrect(true);
+      audio.play();
+      setTimeout(() => {
+        setText("");
+        setCurrentImage(floorImages[currentImageIndex + 1]);
+        setCurrentImageIndex(currentImageIndex + 1);
+        setIsCorrect(false);
+        if (turn === Turn.PlayerOne) {
+          setTurn(Turn.PlayerTwo);
+        } else {
+          setTurn(Turn.PlayerOne);
+        }
+      }, 1000);
+    }
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
+    <div className="flex flex-col justify-between items-center w-full h-full">
+      <div className="w-[700px] h-[500px] relative  rounded-[8px]">
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
+          src={currentImage.src}
+          alt={currentImage.alt}
+          layout="fill"
+          className="rounded-lg"
           priority
         />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+      </div>
+      <button
+        className={
+          started
+            ? "hidden"
+            : "bg-[#0c2589] hover:bg-[#0c2599] text-white font-bold py-2 px-4 rounded "
+        }
+        onClick={() => setStarted(true)}
+      >
+        Start Game
+      </button>
+      <div>{text}</div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="flex flex-col items-center text-2xl">
+        <div className="flex flex-row justify-between min-w-[500px]">
+          <span className="bg-[#0c2589] text-white px-2 py-1 rounded-[2px] min-w-[200px] text-center clip-player-one">
+            {playerOne}
+            <span className="animate-blink">{showCursorOne ? "|" : ""}</span>
+            <span
+              className="cursor-pointer"
+              onClick={() => {
+                setPlayerOne("");
+                setShowCursorOne(true);
+              }}
+            >
+              {started ? "" : "🖊️"}
+            </span>
+          </span>
+          <span className="bg-[#0c2589] text-white px-2 py-1 rounded-[2px] min-w-[200px] text-center clip-player-two">
+            {playerTwo}
+            <span className="animate-blink">{showCursorTwo ? "|" : ""}</span>
+            <span
+              className="cursor-pointer"
+              onClick={() => {
+                setPlayerTwo("");
+                setShowCursorTwo(true);
+              }}
+            >
+              {started ? "" : "🖊️"}
+            </span>
+          </span>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <div className="flex flex-row justify-between min-w-64">
+          <span
+            className={`${
+              timerOne < 15
+                ? turn === Turn.PlayerOne
+                  ? "animate-pulse text-red-500"
+                  : "text-red-500"
+                : timerOne < 30
+                ? "text-yellow-500"
+                : ""
+            } bg-[#0c2589] min-w-[100px] h-[50px] text-center leading-[50px] pl-[40px] clip-left-timer`}
+          >
+            {timerOne}
+          </span>
+          <div className="bg-[#0c2589] min-w-[400px] min-h-[70px] border-[3px] border-[#d1b163] flex justify-center items-center">
+            <span className={!isCorrect ? "hidden" : "text-center"}>
+              {currentImage.answer.toUpperCase()}
+            </span>
+          </div>
+          <span
+            className={`${
+              timerTwo < 15
+                ? turn === Turn.PlayerTwo
+                  ? "animate-pulse text-red-500"
+                  : "text-red-500"
+                : timerTwo < 30
+                ? "text-yellow-500"
+                : ""
+            } bg-[#0c2589] min-w-[100px] h-[50px] text-center leading-[50px] pr-[40px] clip-right-timer`}
+          >
+            {timerTwo}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
